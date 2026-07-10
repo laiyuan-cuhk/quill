@@ -4,6 +4,23 @@ import json
 import argparse
 import pickle
 
+# Compatibility shim: some SciPy versions changed `scipy.linalg.logm` signature
+# Older code (in quill) expects `logm(..., disp=False)` to return `(log, info)`.
+# Newer SciPy returns a single matrix and does not accept `disp` kwarg.
+try:
+    import scipy.linalg as _scla
+    _orig_logm = _scla.logm
+    def _logm_shim(A, *args, **kwargs):
+        if 'disp' in kwargs:
+            kwargs.pop('disp')
+            res = _orig_logm(A, *args, **kwargs)
+            return res, None
+        return _orig_logm(A, *args, **kwargs)
+    _scla.logm = _logm_shim
+except Exception:
+    # If SciPy isn't available or something goes wrong, continue and let import errors surface later
+    pass
+
 from quill.nn.training import TrainCfg, Trainer, Logger
 from quill.nn.batching import discard_empty, split_by_length, Sampler, Collator
 from quill.nn.utils.schedules import make_schedule
@@ -21,7 +38,7 @@ def train(
         device: str):
     logger = Logger(sys.stdout, log_path)
     sys.stdout = logger
-    print(train_cfg['model_config'])
+    print(config['model_config'])
 
     with open(data_path, 'rb') as f:
         files = pickle.load(f)
@@ -32,6 +49,9 @@ def train(
     dev_files = [file for file in files if file.file.name in config['dev_files']]
     train_files, _ = split_by_length(train_files, config['max_tokens'])
     dev_files, _ = split_by_length(dev_files, config['max_tokens'])
+
+    if len(train_files) == 0:
+        raise RuntimeError('No training files found after filtering by config["train_files"]')
 
     train_sampler = Sampler(train_files)
     epoch_size = train_sampler.itersize(config['batch_size_s'] * config['backprop_every'], config['batch_size_h'])
@@ -62,14 +82,38 @@ def train(
             optimizer=optimizer,
             scheduler=scheduler,
             backprop_every=config['backprop_every'])
-        print(f'Train loss: {sum(train_epoch.loss)/len(train_epoch.loss)}')
-        print(f'Train mAP: {sum(train_epoch.ap)/len(train_epoch.ap)}')
-        print(f'Train R-Precision: {sum(train_epoch.rp) / len(train_epoch.rp)}')
-        dev_epoch = model.eval_epoch(map(lambda x: collator([x]), dev_files))
-        print(f'Dev loss: {sum(dev_epoch.loss)/len(dev_epoch.loss)}')
-        print(f'Dev mAP: {sum(dev_epoch.ap) / len(dev_epoch.ap)}')
-        print(f'Dev R-Precision: {sum(dev_epoch.rp) / len(dev_epoch.rp)}')
-        if sum(dev_epoch.ap) > best_ap:
+        if len(train_epoch.loss) > 0:
+            print(f'Train loss: {sum(train_epoch.loss)/len(train_epoch.loss)}')
+        else:
+            print('Train loss: N/A')
+        if len(train_epoch.ap) > 0:
+            print(f'Train mAP: {sum(train_epoch.ap)/len(train_epoch.ap)}')
+        else:
+            print('Train mAP: N/A')
+        if len(train_epoch.rp) > 0:
+            print(f'Train R-Precision: {sum(train_epoch.rp) / len(train_epoch.rp)}')
+        else:
+            print('Train R-Precision: N/A')
+
+        dev_epoch = None
+        if len(dev_files) > 0:
+            dev_epoch = model.eval_epoch(map(lambda x: collator([x]), dev_files))
+            if len(dev_epoch.loss) > 0:
+                print(f'Dev loss: {sum(dev_epoch.loss)/len(dev_epoch.loss)}')
+            else:
+                print('Dev loss: N/A')
+            if len(dev_epoch.ap) > 0:
+                print(f'Dev mAP: {sum(dev_epoch.ap) / len(dev_epoch.ap)}')
+            else:
+                print('Dev mAP: N/A')
+            if len(dev_epoch.rp) > 0:
+                print(f'Dev R-Precision: {sum(dev_epoch.rp) / len(dev_epoch.rp)}')
+            else:
+                print('Dev R-Precision: N/A')
+        else:
+            print('Skipping dev evaluation (no dev files).')
+
+        if dev_epoch is not None and len(dev_epoch.ap) > 0 and sum(dev_epoch.ap) > best_ap:
             print('Saving...')
             model.save(store_path)
             best_ap = sum(dev_epoch.ap)
@@ -90,6 +134,8 @@ def parse_args():
                         default='../data/log.txt')
     parser.add_argument('--checkpoint_path', type=str, help='Where to store/resume the training checkpoint',
                         default='../data/checkpoint.pt')
+    parser.add_argument('--device', type=str, choices=['cpu', 'cuda'],
+                        help='Device to run on (cpu or cuda)', default='cpu')
     return parser.parse_args()
 
 
@@ -102,5 +148,5 @@ if __name__ == '__main__':
         store_path=args.store_path,
         log_path=args.log_path,
         checkpoint_path=args.checkpoint_path,
-        device='cuda',
+        device=args.device,
     )
