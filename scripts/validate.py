@@ -103,7 +103,7 @@ if __name__ == '__main__':
     model_paths = [os.path.join(ROOT, 'data', 'model.pt')]
     evaluate(
         config=train_cfg,
-        data_path=os.path.join(ROOT, 'data', 'tokenized_sample.p'),
+        data_path=os.path.join(ROOT, 'data', 'tokenized.p'),
         model_paths=model_paths,
         long=True,
         short=False,
