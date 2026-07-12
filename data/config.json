@@ -5,7 +5,7 @@
         "dim": 64,
         "head_dim": 16
     },
-    "num_epochs": 10000,
+    "num_epochs": 1000,
     "warmup_epochs": 1,
     "warmdown_epochs": 0,
     "batch_size_s": 1,
