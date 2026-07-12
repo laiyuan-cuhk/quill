@@ -29,16 +29,47 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 
 
+def _apply_cpu_safety(config: TrainCfg, device: str) -> None:
+    if device != 'cpu':
+        return
+
+    if config.get('batch_size_h', 32) > 4:
+        print(f"Reducing batch_size_h from {config['batch_size_h']} to 4 for CPU memory safety.")
+        config['batch_size_h'] = 4
+    if config.get('max_tokens', 16384) > 1024:
+        print(f"Reducing max_tokens from {config['max_tokens']} to 1024 for CPU memory safety.")
+        config['max_tokens'] = 1024
+
+    model_cfg = config['model_config']
+    if model_cfg.get('depth', 1) > 2:
+        print(f"Reducing model depth from {model_cfg['depth']} to 2 for CPU memory safety.")
+        model_cfg['depth'] = 2
+    if model_cfg.get('dim', 256) > 64:
+        print(f"Reducing model dim from {model_cfg['dim']} to 64 for CPU memory safety.")
+        model_cfg['dim'] = 64
+    if model_cfg.get('num_heads', 8) > 4:
+        print(f"Reducing model num_heads from {model_cfg['num_heads']} to 4 for CPU memory safety.")
+        model_cfg['num_heads'] = 4
+    if model_cfg.get('head_dim', 16) > 8:
+        print(f"Reducing model head_dim from {model_cfg['head_dim']} to 8 for CPU memory safety.")
+        model_cfg['head_dim'] = 8
+
+
 def train(
         config: TrainCfg,
         data_path: str,
         store_path: str,
         log_path: str,
         checkpoint_path: str,
-        device: str):
+        device: str,
+        max_batches: int | None = None):
     logger = Logger(sys.stdout, log_path)
     sys.stdout = logger
     print(config['model_config'])
+
+    _apply_cpu_safety(config, device)
+    if max_batches is None and device == 'cpu':
+        max_batches = 6
 
     with open(data_path, 'rb') as f:
         files = pickle.load(f)
@@ -49,6 +80,12 @@ def train(
     dev_files = [file for file in files if file.file.name in config['dev_files']]
     train_files, _ = split_by_length(train_files, config['max_tokens'])
     dev_files, _ = split_by_length(dev_files, config['max_tokens'])
+    if device == 'cpu' and len(train_files) > 16:
+        print(f"Using a subset of {16} training files for CPU runtime safety.")
+        train_files = train_files[:16]
+    if device == 'cpu' and len(dev_files) > 8:
+        print(f"Using a subset of {8} dev files for CPU runtime safety.")
+        dev_files = dev_files[:8]
 
     if len(train_files) == 0:
         raise RuntimeError('No training files found after filtering by config["train_files"]')
@@ -75,10 +112,15 @@ def train(
     for epoch in range(start_epoch, config['num_epochs']):
         print(f'Epoch {epoch}')
         print('-' * 64)
-        train_epoch = model.train_epoch(
-            epoch=map(collator, train_sampler.iter(
+        batches = []
+        for batch_idx, batch in enumerate(train_sampler.iter(
                 batch_size_s=config['batch_size_s'],
-                batch_size_h=config['batch_size_h'])),
+                batch_size_h=config['batch_size_h'])):
+            batches.append(collator(batch))
+            if max_batches is not None and batch_idx + 1 >= max_batches:
+                break
+        train_epoch = model.train_epoch(
+            epoch=iter(batches),
             optimizer=optimizer,
             scheduler=scheduler,
             backprop_every=config['backprop_every'])
@@ -136,6 +178,8 @@ def parse_args():
                         default='../data/checkpoint.pt')
     parser.add_argument('--device', type=str, choices=['cpu', 'cuda'],
                         help='Device to run on (cpu or cuda)', default='cpu')
+    parser.add_argument('--max_batches', type=int, default=None,
+                        help='Limit the number of training batches per epoch; useful for quick smoke tests')
     return parser.parse_args()
 
 
@@ -149,4 +193,5 @@ if __name__ == '__main__':
         log_path=args.log_path,
         checkpoint_path=args.checkpoint_path,
         device=args.device,
+        max_batches=args.max_batches,
     )
