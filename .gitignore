@@ -4,6 +4,7 @@ data/stdlib/*
 data/stdlib-*/
 data/stdlib.*
 data/tokenized*
+data/image/*
 
 # Ignore all Python __pycache__ directories
 __pycache__/
