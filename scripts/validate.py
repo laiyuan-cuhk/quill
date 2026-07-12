@@ -42,7 +42,7 @@ def evaluate(
         short: bool = True,
         long: bool = False):
 
-    _apply_cpu_safety(config, device)
+    #_apply_cpu_safety(config, device)
     model = Trainer(config['model_config']).to(device)
     with open(data_path, 'rb') as f:
         files = pickle.load(f)

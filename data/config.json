@@ -1,7 +1,7 @@
 {
     "model_config": {
         "depth": 2,
-        "num_heads": 1,
+        "num_heads": 4,
         "dim": 64,
         "head_dim": 8
     },
@@ -9,7 +9,7 @@
     "warmup_epochs": 1,
     "warmdown_epochs": 0,
     "batch_size_s": 1,
-    "batch_size_h": 8,
+    "batch_size_h": 4,
     "max_tokens": 1024,
     "backprop_every": 1,
     "max_lr": 0.0005,
