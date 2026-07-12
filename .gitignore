@@ -5,3 +5,6 @@ data/stdlib-*/
 data/stdlib.*
 data/tokenized*
 
+# Ignore all Python __pycache__ directories
+__pycache__/
+
