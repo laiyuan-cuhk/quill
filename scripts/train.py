@@ -4,6 +4,11 @@ import json
 import argparse
 import pickle
 
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+SRC = os.path.join(ROOT, 'src')
+if SRC not in sys.path:
+    sys.path.insert(0, SRC)
+
 # Compatibility shim: some SciPy versions changed `scipy.linalg.logm` signature
 # Older code (in quill) expects `logm(..., disp=False)` to return `(log, info)`.
 # Newer SciPy returns a single matrix and does not accept `disp` kwarg.
@@ -67,7 +72,7 @@ def train(
     sys.stdout = logger
     print(config['model_config'])
 
-    _apply_cpu_safety(config, device)
+    #_apply_cpu_safety(config, device)
     if max_batches is None and device == 'cpu':
         max_batches = 6
 
@@ -80,12 +85,12 @@ def train(
     dev_files = [file for file in files if file.file.name in config['dev_files']]
     train_files, _ = split_by_length(train_files, config['max_tokens'])
     dev_files, _ = split_by_length(dev_files, config['max_tokens'])
-    if device == 'cpu' and len(train_files) > 16:
-        print(f"Using a subset of {16} training files for CPU runtime safety.")
-        train_files = train_files[:16]
-    if device == 'cpu' and len(dev_files) > 8:
-        print(f"Using a subset of {8} dev files for CPU runtime safety.")
-        dev_files = dev_files[:8]
+    #if device == 'cpu' and len(train_files) > 16:
+    #    print(f"Using a subset of {16} training files for CPU runtime safety.")
+    #    train_files = train_files[:16]
+    #if device == 'cpu' and len(dev_files) > 8:
+    #    print(f"Using a subset of {8} dev files for CPU runtime safety.")
+    #    dev_files = dev_files[:8]
 
     if len(train_files) == 0:
         raise RuntimeError('No training files found after filtering by config["train_files"]')

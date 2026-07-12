@@ -4,7 +4,22 @@ import torch
 from torch import Tensor
 from torch.nn import Module, Parameter, Embedding
 from torch.utils.checkpoint import checkpoint
-from scipy.linalg import logm
+
+try:
+    import scipy.linalg as _scla
+    _orig_logm = _scla.logm
+
+    def _logm_shim(A, *args, **kwargs):
+        if 'disp' in kwargs:
+            kwargs.pop('disp')
+            res = _orig_logm(A, *args, **kwargs)
+            return res, None
+        return _orig_logm(A, *args, **kwargs)
+
+    _scla.logm = _logm_shim
+    from scipy.linalg import logm
+except Exception:
+    from scipy.linalg import logm
 
 from .utils import pad_sequence
 

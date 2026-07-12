@@ -2,5 +2,6 @@ data/model.pt
 data/checkpoint.pt
 data/stdlib/*
 data/stdlib-*/
+data/stdlib.*
 data/tokenized*
 
