@@ -1,0 +1,37 @@
+flowchart TD
+    A[Tokenized files] --> B[Collator]
+    B --> C[Batch]
+    C --> D[Model]
+
+    subgraph ModelCore["Model core"]
+        D --> E[FileEncoder]
+        E --> F[TermEncoder]
+        E --> G[TokenEmbedding]
+        D --> H[lemma_predictor]
+        D --> I[RMSNorm]
+    end
+
+    D --> J[get_predictions]
+
+    subgraph Training["Training path"]
+        J --> K[compute_loss]
+        K --> L[infoNCE loss]
+        K --> M[TrainStats]
+        D --> N[train_epoch]
+        N --> O[train_batch]
+        O --> P[optimizer step / scheduler step]
+    end
+
+    subgraph Evaluation["Evaluation path"]
+        J --> Q[eval_batch]
+        Q --> R[evaluate_rankings]
+        R --> S[average_precision / rprecision]
+    end
+
+    subgraph Inference["Inference path"]
+        D --> T[Inferer]
+        T --> U[select_premises]
+        T --> V[precompute]
+        T --> W[extend_batch]
+        U --> X[rank_candidates]
+    end
