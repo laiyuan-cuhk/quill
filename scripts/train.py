@@ -3,11 +3,35 @@ import os
 import json
 import argparse
 import pickle
+import shutil
+from pathlib import Path
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 SRC = os.path.join(ROOT, 'src')
 if SRC not in sys.path:
     sys.path.insert(0, SRC)
+
+
+def _clear_python_cache(root: str) -> None:
+    root_path = Path(root).resolve()
+    if not root_path.exists():
+        return
+
+    cache_dirs = [p for p in root_path.rglob('__pycache__') if p.is_dir()]
+    pyc_files = [p for p in root_path.rglob('*.py[cod]') if p.is_file()]
+
+    for cache_dir in cache_dirs:
+        shutil.rmtree(cache_dir)
+    for pyc_file in pyc_files:
+        pyc_file.unlink(missing_ok=True)
+
+    if cache_dirs or pyc_files:
+        print(f'Cleared Python bytecode cache under {root_path}')
+    else:
+        print(f'No Python bytecode cache found under {root_path}')
+
+
+_clear_python_cache(ROOT)
 
 # Compatibility shim: some SciPy versions changed `scipy.linalg.logm` signature
 # Older code (in quill) expects `logm(..., disp=False)` to return `(log, info)`.

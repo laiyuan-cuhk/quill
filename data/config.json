@@ -1,9 +1,9 @@
 {
     "model_config": {
-        "depth": 2,
-        "num_heads": 4,
-        "dim": 32,
-        "head_dim": 8
+        "depth": 6,
+        "num_heads": 2,
+        "dim": 64,
+        "head_dim": 16
     },
     "num_epochs": 10000,
     "warmup_epochs": 1,
@@ -13,7 +13,7 @@
     "max_tokens": 1024,
     "backprop_every": 1,
     "max_lr": 0.0005,
-    "min_lr": 1e-08,
+    "min_lr": 1e-06,
     "allow_self_loops": false,
     "train_files": [
 "Relation.Binary.Morphism",
