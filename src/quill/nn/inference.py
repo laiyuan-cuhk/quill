@@ -12,6 +12,10 @@ from warnings import warn
 class Inferer(Model):
     def __init__(self, model_config: ModelCfg, cast_to: str):
         super(Inferer, self).__init__(model_config)
+        # If CUDA was requested but is not available, fall back to CPU.
+        if isinstance(cast_to, str) and cast_to.startswith('cuda') and not torch.cuda.is_available():
+            warn('CUDA requested but not available; falling back to CPU')
+            cast_to = 'cpu'
         self.collator = Collator(pad_value=-1, allow_self_loops=False, device=cast_to)
         self.eval()
         self.to(cast_to)

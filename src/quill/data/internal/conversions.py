@@ -30,39 +30,46 @@ AgdaTree = TreeBase[tuple[int, AgdaLeaf], tuple[int, AgdaOp]]
 
 
 def term_to_ast(term: AgdaTerm, n: int = 1, bindings: tuple[int, ...] = ()) -> AgdaTree:
-    match term:
-        case PiTerm(domain, codomain, None):
-            return Binary(
-                op=(n, BinaryOp.PiSimple),
-                left=term_to_ast(domain, 2 * n, bindings),
-                right=term_to_ast(codomain, 2 * n + 1, bindings))
-        case PiTerm(domain, codomain, _):
-            return Binary(
-                op=(n, BinaryOp.PiDependent),
-                left=term_to_ast(domain, 2 * n, bindings),
-                right=term_to_ast(codomain, 2 * n + 1, (2 * n, *bindings)))
-        case LamTerm(_, body):
-            return Binary(
-                op=(n, BinaryOp.Lambda),
-                left=Terminal((2 * n, NullaryOps.Abs)),
-                right=term_to_ast(body, 2 * n + 1, (2 * n, *bindings)))
-        case AppTerm(head, argument):
-            return Binary(
-                op=(n, BinaryOp.Application),
-                left=term_to_ast(head, 2 * n, bindings),
-                right=term_to_ast(argument, 2 * n + 1, bindings))
-        case Reference(_):
-            return Terminal((n, term))
-        case DeBruijn(index):
-            return Terminal((n, DeBruijn(bindings[index])))
-        case SortTerm(_):
-            return Terminal((n, NullaryOps.Sort))
-        case LitTerm(_):
-            return Terminal((n, NullaryOps.Literal))
-        case LevelTerm(_):
-            return Terminal((n, NullaryOps.Level))
-        case _:
-            raise ValueError
+    from itertools import count
+
+    counter = count(n)
+
+    def go(t: AgdaTerm, _bindings: tuple[int, ...]) -> AgdaTree:
+        idx = next(counter)
+        match t:
+            case PiTerm(domain, codomain, None):
+                return Binary(
+                    op=(idx, BinaryOp.PiSimple),
+                    left=go(domain, _bindings),
+                    right=go(codomain, _bindings))
+            case PiTerm(domain, codomain, _):
+                new_binding = next(counter)
+                left = go(domain, _bindings)
+                right = go(codomain, (new_binding, *(_bindings)))
+                return Binary(op=(idx, BinaryOp.PiDependent), left=left, right=right)
+            case LamTerm(_, body):
+                abs_idx = next(counter)
+                left = Terminal((abs_idx, NullaryOps.Abs))
+                right = go(body, (abs_idx, *(_bindings)))
+                return Binary(op=(idx, BinaryOp.Lambda), left=left, right=right)
+            case AppTerm(head, argument):
+                left = go(head, _bindings)
+                right = go(argument, _bindings)
+                return Binary(op=(idx, BinaryOp.Application), left=left, right=right)
+            case Reference(_):
+                return Terminal((idx, t))
+            case DeBruijn(index):
+                return Terminal((idx, DeBruijn(_bindings[index])))
+            case SortTerm(_):
+                return Terminal((idx, NullaryOps.Sort))
+            case LitTerm(_):
+                return Terminal((idx, NullaryOps.Literal))
+            case LevelTerm(_):
+                return Terminal((idx, NullaryOps.Level))
+            case _:
+                raise ValueError
+
+    return go(term, bindings)
 
 
 def definition_to_ast(definition: AgdaDefinition) -> NoReturn:
