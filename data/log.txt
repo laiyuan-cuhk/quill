@@ -1,0 +1,13 @@
+{'depth': 6, 'num_heads': 8, 'dim': 256, 'head_dim': 16}
+Read 1029 files with 33261 holes.
+Of which 751 have at least 1 hole.
+{'depth': 6, 'num_heads': 8, 'dim': 256, 'head_dim': 16}
+Read 1029 files with 33261 holes.
+Of which 751 have at least 1 hole.
+Epoch 0
+----------------------------------------------------------------
+{'depth': 6, 'num_heads': 8, 'dim': 256, 'head_dim': 16}
+Read 1029 files with 33261 holes.
+Of which 751 have at least 1 hole.
+Epoch 0
+----------------------------------------------------------------

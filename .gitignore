@@ -1,2 +1,3 @@
 data/stdlib/*
+data/stdlib-*/
 data/tokenized*
